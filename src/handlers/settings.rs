@@ -1,0 +1,131 @@
+use crate::db::AppState;
+use crate::models::user::UserResponse;
+use actix_web::{web, HttpResponse, Responder};
+use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct ExchangeRate {
+    pub currency_code: String,
+    pub rate_to_base: Decimal,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateExchangeRateSchema {
+    pub rate_to_base: Decimal,
+}
+
+pub async fn get_exchange_rates(data: web::Data<AppState>) -> impl Responder {
+    let result = sqlx::query_as!(ExchangeRate, "SELECT * FROM exchange_rates")
+        .fetch_all(&data.db)
+        .await;
+
+    match result {
+        Ok(rates) => HttpResponse::Ok().json(rates),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+}
+
+pub async fn update_exchange_rate(
+    path: web::Path<String>,
+    body: web::Json<UpdateExchangeRateSchema>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let currency_code = path.into_inner();
+    let result = sqlx::query!(
+        "INSERT INTO exchange_rates (currency_code, rate_to_base) VALUES ($1, $2)
+         ON CONFLICT (currency_code) DO UPDATE SET rate_to_base = $2, updated_at = NOW()",
+        currency_code,
+        body.rate_to_base
+    )
+    .execute(&data.db)
+    .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(json!({"message": "Rate updated"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChangeRoleSchema {
+    pub role: String,
+}
+
+pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
+    let result = sqlx::query_as!(
+        UserResponse,
+        "SELECT id, username, role, is_blocked FROM users where role != 'ADMIN' ORDER BY created_at DESC"
+    )
+    .fetch_all(&data.db)
+    .await;
+
+    match result {
+        Ok(users) => HttpResponse::Ok().json(json!({ "users": users })),
+        Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
+    }
+}
+
+pub async fn block_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
+    let user_id = path.into_inner();
+    let result = sqlx::query!("UPDATE users SET is_blocked = TRUE WHERE id = $1", user_id)
+        .execute(&data.db)
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(json!({ "message": "User blocked" })),
+        Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
+    }
+}
+
+pub async fn unblock_user(
+    path: web::Path<uuid::Uuid>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let user_id = path.into_inner();
+    let result = sqlx::query!("UPDATE users SET is_blocked = FALSE WHERE id = $1", user_id)
+        .execute(&data.db)
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(json!({ "message": "User unblocked" })),
+        Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
+    }
+}
+
+pub async fn change_user_role(
+    path: web::Path<uuid::Uuid>,
+    body: web::Json<ChangeRoleSchema>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let user_id = path.into_inner();
+    let result = sqlx::query!(
+        "UPDATE users SET role = $1 WHERE id = $2",
+        body.role,
+        user_id
+    )
+    .execute(&data.db)
+    .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(json!({ "message": "Role updated" })),
+        Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
+    }
+}
+
+pub async fn delete_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
+    let user_id = path.into_inner();
+
+    // Prevent deleting the main admin user (optional but safer)
+    // For now, just implement the delete logic
+    let result = sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
+        .execute(&data.db)
+        .await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(json!({ "message": "User deleted successfully" })),
+        Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
+    }
+}

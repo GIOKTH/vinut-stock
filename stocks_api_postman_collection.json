@@ -1,0 +1,661 @@
+{
+    "info": {
+        "_postman_id": "1d8b9d8c-5a9e-4b3e-8c7a-9f5b6db7e42a",
+        "name": "Stock and POS API",
+        "description": "Collection for the Rust Actix-web Stock and POS management system.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Register User",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"sale01\",\n    \"password\": \"password123\",\n    \"role\": \"SALE\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Products",
+            "item": [
+                {
+                    "name": "List Products",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/products",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Product",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"code\": \"STK-001\",\n    \"name\": \"Apple iPhone 15\",\n    \"image\": \"iphone15.jpg\",\n    \"sale_price\": \"999.99\",\n    \"commission_price\": \"50.00\",\n    \"promotion_price\": \"949.99\",\n    \"quantity\": 100,\n    \"low_stock_threshold\": 10\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/products",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Product by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/products/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "PRODUCT_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Product Purchase History",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/products/:id/purchases",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id",
+                                "purchases"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "PRODUCT_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sales",
+            "item": [
+                {
+                    "name": "List Sales",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/sales",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Sale (POS)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"items\": [\n        {\n            \"product_id\": \"PRODUCT_UUID_HERE\",\n            \"quantity\": 2\n        }\n    ],\n    \"payment_method\": \"CASH\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/sales",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Sale Status",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"COMPLETED\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/sales/:id/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                ":id",
+                                "status"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "SALE_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Purchases",
+            "item": [
+                {
+                    "name": "Create Purchase (Batch)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"supplier_id\": \"SUPPLIER_UUID_HERE\",\n    \"currency_code\": \"USD\",\n    \"exchange_rate\": \"35.00\",\n    \"shipping_cost\": \"50.00\",\n    \"tax_rate\": \"7.00\",\n    \"items\": [\n        {\n            \"product_id\": \"PRODUCT_UUID_HERE\",\n            \"quantity\": 100,\n            \"buy_price\": \"10.00\",\n            \"new_sale_price\": \"15.00\"\n        },\n        {\n            \"product_id\": \"PRODUCT_UUID_2_HERE\",\n            \"quantity\": 50,\n            \"buy_price\": \"20.00\"\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/purchases",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "purchases"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Purchases",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/purchases",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "purchases"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Quotations",
+            "item": [
+                {
+                    "name": "Create Quotation",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"partner_name\": \"Client ABC\",\n    \"currency_code\": \"THB\",\n    \"tax_rate\": \"7.00\",\n    \"discount_amount\": \"100.00\",\n    \"items\": [\n        {\n            \"product_id\": \"PRODUCT_UUID_HERE\",\n            \"quantity\": 5\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/quotations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "quotations"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Quotations",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/quotations",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "quotations"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Quotation Status",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"status\": \"ACCEPTED\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/quotations/:id/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "quotations",
+                                ":id",
+                                "status"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "QUOTATION_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Convert to Sale",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/quotations/:id/convert",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "quotations",
+                                ":id",
+                                "convert"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "QUOTATION_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Settings & User Management",
+            "item": [
+                {
+                    "name": "List Exchange Rates",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/exchange",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "exchange"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Exchange Rate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"rate_to_base\": \"35.50\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/exchange/:currency",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "exchange",
+                                ":currency"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "currency",
+                                    "value": "THB"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Users (Excl. Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/users",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "users"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Block User",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/users/:id/block",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "users",
+                                ":id",
+                                "block"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "USER_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Unblock User",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/users/:id/unblock",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "users",
+                                ":id",
+                                "unblock"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "USER_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Change User Role",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"role\": \"ADMIN\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/users/:id/role",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "users",
+                                ":id",
+                                "role"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "USER_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/settings/users/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings",
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "USER_UUID_HERE"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reports",
+            "item": [
+                {
+                    "name": "Product Sales Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/reports/products",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Low Stock Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/reports/low-stock",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "low-stock"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Dashboard",
+            "item": [
+                {
+                    "name": "Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/dashboard/summary",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "dashboard",
+                                "summary"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://127.0.0.1:8080",
+            "type": "string"
+        }
+    ]
+}
