@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Users Table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE users (
 );
 
 -- Suppliers Table
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     contact_name VARCHAR(100),
@@ -27,7 +27,7 @@ CREATE TABLE suppliers (
 );
 
 -- Products Table
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE products (
 );
 
 -- Purchases Table (Restocking)
-CREATE TABLE purchases (
+CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     supplier_id UUID REFERENCES suppliers(id),
     product_id UUID REFERENCES products(id),
@@ -53,7 +53,7 @@ CREATE TABLE purchases (
 );
 
 -- Sales Table
-CREATE TABLE sales (
+CREATE TABLE IF NOT EXISTS sales (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id), -- Who made the sale
     total_amount DECIMAL(15, 2) NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE sales (
 );
 
 -- Sale Items Table
-CREATE TABLE sale_items (
+CREATE TABLE IF NOT EXISTS sale_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     sale_id UUID REFERENCES sales(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id),
@@ -74,7 +74,7 @@ CREATE TABLE sale_items (
 );
 
 -- Quotations Table
-CREATE TABLE quotations (
+CREATE TABLE IF NOT EXISTS quotations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     partner_name VARCHAR(255),
     user_id UUID REFERENCES users(id),
@@ -85,7 +85,7 @@ CREATE TABLE quotations (
 );
 
 -- Quotation Items Table
-CREATE TABLE quotation_items (
+CREATE TABLE IF NOT EXISTS quotation_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     quotation_id UUID REFERENCES quotations(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id),
@@ -94,7 +94,7 @@ CREATE TABLE quotation_items (
 );
 
 -- Exchange Rates Table
-CREATE TABLE exchange_rates (
+CREATE TABLE IF NOT EXISTS exchange_rates (
     currency_code VARCHAR(10) PRIMARY KEY, -- LAK, THB, USD, AUD, CNY
     rate_to_base DECIMAL(15, 6) NOT NULL, -- Assuming base is one of them, usually USD or local
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

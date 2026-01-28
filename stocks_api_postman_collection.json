@@ -5,6 +5,16 @@
         "description": "Collection for the Rust Actix-web Stock and POS management system.",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{bearer_token}}",
+                "type": "string"
+            }
+        ]
+    },
     "item": [
         {
             "name": "Auth",
@@ -39,6 +49,9 @@
                 {
                     "name": "Login",
                     "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
                         "method": "POST",
                         "header": [
                             {
@@ -655,6 +668,11 @@
         {
             "key": "base_url",
             "value": "http://127.0.0.1:8080",
+            "type": "string"
+        },
+        {
+            "key": "bearer_token",
+            "value": "YOUR_TOKEN_HERE",
             "type": "string"
         }
     ]

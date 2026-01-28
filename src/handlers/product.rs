@@ -5,6 +5,18 @@ use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
 
+#[utoipa::path(
+    get,
+    path = "/api/products",
+    responses(
+        (status = 200, description = "List all products", body = [Product]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Products",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_products(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(Product, "SELECT * FROM products")
         .fetch_all(&data.db)
@@ -16,6 +28,19 @@ pub async fn get_products(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/products",
+    request_body = CreateProductSchema,
+    responses(
+        (status = 200, description = "Product created successfully", body = Product),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Products",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_product(
     body: web::Json<CreateProductSchema>,
     data: web::Data<AppState>,
@@ -36,6 +61,22 @@ pub async fn create_product(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/products/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Product Database ID")
+    ),
+    responses(
+        (status = 200, description = "Product fetched successfully", body = Product),
+        (status = 404, description = "Product not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Products",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_product_by_id(path: web::Path<Uuid>, data: web::Data<AppState>) -> impl Responder {
     let id = path.into_inner();
     let result = sqlx::query_as!(Product, "SELECT * FROM products WHERE id = $1", id)
@@ -49,6 +90,21 @@ pub async fn get_product_by_id(path: web::Path<Uuid>, data: web::Data<AppState>)
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/products/{id}/purchases",
+    params(
+        ("id" = Uuid, Path, description = "Product Database ID")
+    ),
+    responses(
+        (status = 200, description = "Product purchase history fetched successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Products",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_product_purchases(
     path: web::Path<Uuid>,
     data: web::Data<AppState>,

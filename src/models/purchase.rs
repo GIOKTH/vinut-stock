@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
 pub struct Purchase {
     pub id: Uuid,
     pub supplier_id: Option<Uuid>,
@@ -16,7 +16,7 @@ pub struct Purchase {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
 pub struct PurchaseItem {
     pub id: Uuid,
     pub purchase_id: Option<Uuid>,
@@ -26,7 +26,7 @@ pub struct PurchaseItem {
     pub subtotal: Decimal,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CreatePurchaseItemSchema {
     pub product_id: Uuid,
     pub quantity: i32,
@@ -36,7 +36,7 @@ pub struct CreatePurchaseItemSchema {
     pub new_promotion_price: Option<Decimal>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CreatePurchaseSchema {
     pub supplier_id: Option<Uuid>,
     pub items: Vec<CreatePurchaseItemSchema>,

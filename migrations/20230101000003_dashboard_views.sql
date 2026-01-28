@@ -1,5 +1,10 @@
--- Add cost_price to products
-ALTER TABLE products ADD COLUMN cost_price DECIMAL(15, 2) DEFAULT 0.00;
+-- Add cost_price to products if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='cost_price') THEN
+        ALTER TABLE products ADD COLUMN cost_price DECIMAL(15, 2) DEFAULT 0.00;
+    END IF;
+END $$;
 
 -- Dashboard Stats View (Today's Summary)
 CREATE OR REPLACE VIEW dashboard_stats AS

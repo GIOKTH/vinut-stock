@@ -5,18 +5,30 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct ExchangeRate {
     pub currency_code: String,
     pub rate_to_base: Decimal,
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct UpdateExchangeRateSchema {
     pub rate_to_base: Decimal,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/settings/exchange",
+    responses(
+        (status = 200, description = "List all exchange rates", body = [ExchangeRate]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_exchange_rates(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(ExchangeRate, "SELECT * FROM exchange_rates")
         .fetch_all(&data.db)
@@ -28,6 +40,22 @@ pub async fn get_exchange_rates(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/settings/exchange/{currency}",
+    params(
+        ("currency" = String, Path, description = "Currency code (e.g. USD)")
+    ),
+    request_body = UpdateExchangeRateSchema,
+    responses(
+        (status = 200, description = "Exchange rate updated"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn update_exchange_rate(
     path: web::Path<String>,
     body: web::Json<UpdateExchangeRateSchema>,
@@ -49,11 +77,23 @@ pub async fn update_exchange_rate(
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ChangeRoleSchema {
     pub role: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/settings/users",
+    responses(
+        (status = 200, description = "List all users for management", body = [UserResponse]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(
         UserResponse,
@@ -68,6 +108,21 @@ pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/settings/users/{id}/block",
+    params(
+        ("id" = Uuid, Path, description = "User Database ID")
+    ),
+    responses(
+        (status = 200, description = "User blocked successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn block_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
     let user_id = path.into_inner();
     let result = sqlx::query!("UPDATE users SET is_blocked = TRUE WHERE id = $1", user_id)
@@ -80,6 +135,21 @@ pub async fn block_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) 
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/settings/users/{id}/unblock",
+    params(
+        ("id" = Uuid, Path, description = "User Database ID")
+    ),
+    responses(
+        (status = 200, description = "User unblocked successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn unblock_user(
     path: web::Path<uuid::Uuid>,
     data: web::Data<AppState>,
@@ -95,6 +165,22 @@ pub async fn unblock_user(
     }
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/settings/users/{id}/role",
+    params(
+        ("id" = Uuid, Path, description = "User Database ID")
+    ),
+    request_body = ChangeRoleSchema,
+    responses(
+        (status = 200, description = "User role updated successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn change_user_role(
     path: web::Path<uuid::Uuid>,
     body: web::Json<ChangeRoleSchema>,
@@ -115,6 +201,21 @@ pub async fn change_user_role(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/settings/users/{id}",
+    params(
+        ("id" = Uuid, Path, description = "User Database ID")
+    ),
+    responses(
+        (status = 200, description = "User deleted successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Settings",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn delete_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
     let user_id = path.into_inner();
 

@@ -6,6 +6,20 @@ use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/api/sales",
+    request_body = CreateSaleSchema,
+    responses(
+        (status = 200, description = "Sale created successfully", body = Sale),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Sales",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_sale(
     body: web::Json<CreateSaleSchema>,
     data: web::Data<AppState>,
@@ -17,10 +31,7 @@ pub async fn create_sale(
         .currency_code
         .clone()
         .unwrap_or_else(|| "BASE".to_string());
-    let status = body
-        .status
-        .clone()
-        .unwrap_or_else(|| "COMPLETED".to_string());
+    let status = body.status.clone().unwrap_or_else(|| "PENDING".to_string());
     let exchange_rate = if currency == "BASE" {
         Decimal::new(1, 0)
     } else {
@@ -72,7 +83,7 @@ pub async fn create_sale(
                     }));
                 }
 
-                let subtotal = p.sale_price * Decimal::from(item.quantity);
+                let subtotal = p.sale_price * Decimal::from(item.quantity) * exchange_rate;
                 total_amount += subtotal;
 
                 let sale_item = SaleItem {
@@ -80,7 +91,7 @@ pub async fn create_sale(
                     sale_id,
                     product_id: Some(p.id),
                     quantity: item.quantity,
-                    unit_price: p.sale_price,
+                    unit_price: p.sale_price * exchange_rate,
                     subtotal,
                 };
                 sale_items.push(sale_item);
@@ -134,17 +145,48 @@ pub async fn create_sale(
     HttpResponse::Ok().json(sale)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/sales",
+    responses(
+        (status = 200, description = "List all sales", body = [Sale]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Sales",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_sales(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(Sale, "SELECT * FROM sales ORDER BY created_at DESC")
         .fetch_all(&data.db)
         .await;
-
     match result {
-        Ok(purchases) => HttpResponse::Ok().json(purchases),
+        Ok(purchases) => {
+            log::info!("Sales fetched successfully");
+            HttpResponse::Ok().json(purchases)
+        }
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/sales/{id}/status",
+    params(
+        ("id" = Uuid, Path, description = "Sale Database ID")
+    ),
+    request_body = UpdateSaleStatusSchema,
+    responses(
+        (status = 200, description = "Sale status updated", body = Sale),
+        (status = 404, description = "Sale not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Sales",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn update_sale_status(
     path: web::Path<Uuid>,
     body: web::Json<UpdateSaleStatusSchema>,

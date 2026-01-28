@@ -8,6 +8,20 @@ use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/api/quotations",
+    request_body = CreateQuotationSchema,
+    responses(
+        (status = 200, description = "Quotation created successfully", body = Quotation),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Quotations",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_quotation(
     body: web::Json<CreateQuotationSchema>,
     data: web::Data<AppState>,
@@ -120,6 +134,18 @@ pub async fn create_quotation(
     HttpResponse::Ok().json(quotation)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/quotations",
+    responses(
+        (status = 200, description = "List all quotations", body = [Quotation]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Quotations",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_quotations(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(
         Quotation,
@@ -134,6 +160,23 @@ pub async fn get_quotations(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/quotations/{id}/status",
+    params(
+        ("id" = Uuid, Path, description = "Quotation Database ID")
+    ),
+    request_body = UpdateQuotationStatusSchema,
+    responses(
+        (status = 200, description = "Quotation status updated", body = Quotation),
+        (status = 404, description = "Quotation not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Quotations",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn update_quotation_status(
     path: web::Path<Uuid>,
     body: web::Json<UpdateQuotationStatusSchema>,
@@ -157,6 +200,23 @@ pub async fn update_quotation_status(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/quotations/{id}/convert",
+    params(
+        ("id" = Uuid, Path, description = "Quotation Database ID")
+    ),
+    responses(
+        (status = 200, description = "Quotation converted to sale successfully"),
+        (status = 404, description = "Quotation not found"),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Quotations",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -> impl Responder {
     let quotation_id = path.into_inner();
 
@@ -213,7 +273,7 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
 
     sqlx::query!(
         "INSERT INTO sales (id, total_amount, currency_code, exchange_rate, status) 
-         VALUES ($1, $2, $3, $4, 'COMPLETED')",
+         VALUES ($1, $2, $3, $4, 'PENDING')",
         sale_id,
         quotation.total_amount,
         quotation.currency_code,

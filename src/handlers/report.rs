@@ -2,6 +2,18 @@ use crate::db::AppState;
 use actix_web::{web, HttpResponse, Responder};
 use serde_json::json;
 
+#[utoipa::path(
+    get,
+    path = "/api/dashboard/summary",
+    responses(
+        (status = 200, description = "Dashboard summary fetched successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Reports",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query!("SELECT * FROM dashboard_stats")
         .fetch_one(&data.db)
@@ -72,6 +84,18 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/reports/products",
+    responses(
+        (status = 200, description = "Product performance reports fetched successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Reports",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_product_reports(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query!("SELECT * FROM product_performance ORDER BY total_sold DESC")
         .fetch_all(&data.db)
@@ -96,6 +120,18 @@ pub async fn get_product_reports(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/reports/low-stock",
+    responses(
+        (status = 200, description = "Low stock report fetched successfully"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Reports",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_low_stock_report(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query!(
         "SELECT name, code, quantity, low_stock_threshold FROM products WHERE quantity <= low_stock_threshold"

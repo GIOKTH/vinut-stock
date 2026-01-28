@@ -1,6 +1,9 @@
+use crate::docs::ApiDoc;
 use crate::handlers::{auth, product, purchase, quotation, report, sale, settings};
 use crate::middleware::Authorize;
 use actix_web::web;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -39,17 +42,13 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/sales")
+                    .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
                     .service(
-                        web::scope("")
-                            .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
-                            .route("", web::post().to(sale::create_sale))
-                            .route("/{id}/status", web::patch().to(sale::update_sale_status)),
+                        web::resource("")
+                            .route(web::post().to(sale::create_sale))
+                            .route(web::get().to(sale::get_sales)),
                     )
-                    .service(
-                        web::scope("")
-                            .wrap(Authorize::new(vec!["ADMIN"]))
-                            .route("", web::get().to(sale::get_sales)),
-                    ),
+                    .route("/{id}/status", web::patch().to(sale::update_sale_status)),
             )
             .service(
                 web::scope("/purchases")
@@ -99,5 +98,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
                     .route("/summary", web::get().to(report::get_dashboard_summary)),
             ),
+    );
+
+    cfg.service(
+        SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi()),
     );
 }

@@ -5,6 +5,16 @@ use actix_web::{web, HttpResponse, Responder};
 use serde_json::json;
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/register",
+    request_body = CreateUserSchema,
+    responses(
+        (status = 200, description = "User registered successfully", body = UserResponse),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Auth"
+)]
 pub async fn register_user(
     body: web::Json<CreateUserSchema>,
     data: web::Data<AppState>,
@@ -42,6 +52,17 @@ pub async fn register_user(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/auth/login",
+    request_body = LoginSchema,
+    responses(
+        (status = 200, description = "Login successful", body = String),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Auth"
+)]
 pub async fn login_user(body: web::Json<LoginSchema>, data: web::Data<AppState>) -> impl Responder {
     let user_result = sqlx::query_as!(
         User,
@@ -69,6 +90,19 @@ pub async fn login_user(body: web::Json<LoginSchema>, data: web::Data<AppState>)
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/auth/me",
+    responses(
+        (status = 200, description = "Current user info fetched successfully", body = UserResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Auth",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_me(req: actix_web::HttpRequest, data: web::Data<AppState>) -> impl Responder {
     let auth_header = match req.headers().get("Authorization") {
         Some(h) => match h.to_str() {

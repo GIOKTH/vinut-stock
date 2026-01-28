@@ -31,3 +31,5 @@ futures-util = "0.3"
 rust_decimal = { version = "1.33", features = ["db-postgres", "serde-float"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
+utoipa = { version = "5.0", features = ["macros", "chrono", "uuid", "decimal"] }
+utoipa-swagger-ui = { version = "8.0", features = ["actix-web"] }

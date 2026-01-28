@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
 pub struct Quotation {
     pub id: Uuid,
     pub partner_name: Option<String>,
@@ -19,7 +19,7 @@ pub struct Quotation {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
 pub struct QuotationItem {
     pub id: Uuid,
     pub quotation_id: Option<Uuid>,
@@ -29,13 +29,13 @@ pub struct QuotationItem {
     pub subtotal: Decimal,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CreateQuotationItemSchema {
     pub product_id: Uuid,
     pub quantity: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct CreateQuotationSchema {
     pub partner_name: Option<String>,
     pub items: Vec<CreateQuotationItemSchema>,
@@ -45,7 +45,7 @@ pub struct CreateQuotationSchema {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct UpdateQuotationStatusSchema {
     pub status: String,
 }

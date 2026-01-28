@@ -1,5 +1,6 @@
 mod config;
 mod db;
+mod docs;
 mod handlers;
 mod middleware;
 mod models;
@@ -18,6 +19,10 @@ async fn main() -> std::io::Result<()> {
 
     let config = Config::init();
     let pool = connection_pool(&config).await;
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     log::info!("Starting server at {}", config.server_address);
 

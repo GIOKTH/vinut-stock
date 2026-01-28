@@ -1,11 +1,24 @@
 use crate::db::AppState;
-use crate::models::purchase::{CreatePurchaseSchema, Purchase, PurchaseItem};
+use crate::models::purchase::{CreatePurchaseSchema, Purchase};
 use actix_web::{web, HttpResponse, Responder};
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::json;
 use uuid::Uuid;
 
+#[utoipa::path(
+    post,
+    path = "/api/purchases",
+    request_body = CreatePurchaseSchema,
+    responses(
+        (status = 200, description = "Purchase created successfully", body = Purchase),
+        (status = 400, description = "Bad request"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Purchases",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_purchase(
     body: web::Json<CreatePurchaseSchema>,
     data: web::Data<AppState>,
@@ -194,6 +207,18 @@ pub async fn create_purchase(
     HttpResponse::Ok().json(purchase)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/purchases",
+    responses(
+        (status = 200, description = "List all purchases", body = [Purchase]),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Purchases",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_purchases(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(Purchase, "SELECT * FROM purchases ORDER BY created_at DESC")
         .fetch_all(&data.db)
