@@ -109,7 +109,7 @@ pub async fn get_product_reports(data: web::Data<AppState>) -> impl Responder {
                 .map(|r| {
                     json!({
                         "product": r.get::<String, _>("product_name"),
-                        "total_sold": r.get::<Option<rust_decimal::Decimal>, _>("total_sold"),
+                        "total_sold": r.get::<i64, _>("total_sold"),
                         "total_revenue": r.get::<Option<rust_decimal::Decimal>, _>("total_revenue"),
                         "total_profit": r.get::<Option<rust_decimal::Decimal>, _>("total_profit"),
                         "current_stock": r.get::<i32, _>("current_stock"),
