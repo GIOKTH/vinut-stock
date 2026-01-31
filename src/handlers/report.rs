@@ -97,20 +97,24 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
     )
 )]
 pub async fn get_product_reports(data: web::Data<AppState>) -> impl Responder {
-    let result = sqlx::query!("SELECT * FROM product_performance ORDER BY total_sold DESC")
+    let result = sqlx::query("SELECT * FROM product_performance ORDER BY total_sold DESC")
         .fetch_all(&data.db)
         .await;
 
     match result {
         Ok(rows) => {
+            use sqlx::Row;
             let reports: Vec<_> = rows
                 .into_iter()
                 .map(|r| {
                     json!({
-                        "product": r.product_name,
-                        "total_sold": r.total_sold,
-                        "total_revenue": r.total_revenue,
-                        "total_profit": r.total_profit
+                        "product": r.get::<String, _>("product_name"),
+                        "total_sold": r.get::<Option<rust_decimal::Decimal>, _>("total_sold"),
+                        "total_revenue": r.get::<Option<rust_decimal::Decimal>, _>("total_revenue"),
+                        "total_profit": r.get::<Option<rust_decimal::Decimal>, _>("total_profit"),
+                        "current_stock": r.get::<i32, _>("current_stock"),
+                        "is_low_stock": r.get::<bool, _>("is_low_stock"),
+                        "is_active": r.get::<Option<bool>, _>("is_active")
                     })
                 })
                 .collect();

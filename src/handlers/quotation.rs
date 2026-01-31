@@ -255,10 +255,19 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
     // 3. Check Stock for all items
     for item in &items {
         if let Some(pid) = item.product_id {
-            let product = sqlx::query!("SELECT name, quantity FROM products WHERE id = $1", pid)
-                .fetch_one(&mut *tx)
-                .await
-                .expect("Failed to fetch product");
+            let product = sqlx::query!(
+                "SELECT name, quantity, is_active FROM products WHERE id = $1",
+                pid
+            )
+            .fetch_one(&mut *tx)
+            .await
+            .expect("Failed to fetch product");
+
+            if !product.is_active.unwrap_or(true) {
+                return HttpResponse::BadRequest().json(json!({
+                    "error": format!("Product {} is not active for sale", product.name)
+                }));
+            }
 
             if product.quantity < item.quantity {
                 return HttpResponse::BadRequest().json(json!({

@@ -15,6 +15,7 @@ pub struct Product {
     pub commission_price: Option<Decimal>,
     pub promotion_price: Option<Decimal>,
     pub quantity: i32,
+    pub is_active: Option<bool>,
     pub low_stock_threshold: Option<i32>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
@@ -29,5 +30,6 @@ pub struct CreateProductSchema {
     pub commission_price: Option<Decimal>,
     pub promotion_price: Option<Decimal>,
     pub quantity: i32,
+    pub is_active: Option<bool>,
     pub low_stock_threshold: Option<i32>,
 }

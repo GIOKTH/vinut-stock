@@ -16,6 +16,7 @@ use crate::models::{product::*, purchase::*, quotation::*, sale::*, user::*};
         product::get_products,
         product::create_product,
         product::get_product_by_id,
+        product::update_product_status,
         product::get_product_purchases,
         purchase::create_purchase,
         purchase::get_purchases,
@@ -40,7 +41,7 @@ use crate::models::{product::*, purchase::*, quotation::*, sale::*, user::*};
     components(
         schemas(
             User, CreateUserSchema, LoginSchema, UserResponse,
-            Product, CreateProductSchema,
+            Product, CreateProductSchema, product::UpdateProductStatusSchema,
             Purchase, PurchaseItem, CreatePurchaseItemSchema, CreatePurchaseSchema,
             Quotation, QuotationItem, CreateQuotationItemSchema, CreateQuotationSchema, UpdateQuotationStatusSchema,
             Sale, SaleItem, CreateSaleItemSchema, CreateSaleSchema, UpdateSaleStatusSchema,

@@ -47,3 +47,14 @@ pub struct CreateSaleSchema {
 pub struct UpdateSaleStatusSchema {
     pub status: String,
 }
+
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct SalesQuerySchema {
+    #[serde(default)]
+    pub page: Option<i64>,
+    #[serde(default)]
+    pub page_size: Option<i64>,
+    #[serde(default)]
+    pub status: Option<String>,
+}

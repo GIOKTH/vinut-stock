@@ -12,32 +12,33 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/auth")
                     .route("/login", web::post().to(auth::login_user))
                     .service(
-                        web::scope("")
+                        web::resource("/register")
                             .wrap(Authorize::new(vec!["ADMIN"]))
-                            .route("/register", web::post().to(auth::register_user)),
+                            .route(web::post().to(auth::register_user)),
                     )
                     .service(
-                        web::scope("")
+                        web::resource("/me")
                             .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
-                            .route("/me", web::get().to(auth::get_me)),
+                            .route(web::get().to(auth::get_me)),
                     ),
             )
             .service(
                 web::scope("/products")
                     .service(
-                        web::scope("")
-                            .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
-                            .route("", web::get().to(product::get_products))
-                            .route("/{id}", web::get().to(product::get_product_by_id))
+                        web::resource("")
+                            .route(web::get().to(product::get_products))
                             .route(
-                                "/{id}/purchases",
-                                web::get().to(product::get_product_purchases),
+                                web::post()
+                                    .to(product::create_product)
+                                    .wrap(Authorize::new(vec!["ADMIN"])),
                             ),
                     )
                     .service(
-                        web::scope("")
-                            .wrap(Authorize::new(vec!["ADMIN"]))
-                            .route("", web::post().to(product::create_product)),
+                        web::scope("/{id}")
+                            .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
+                            .route("", web::get().to(product::get_product_by_id))
+                            .route("/status", web::patch().to(product::update_product_status))
+                            .route("/purchases", web::get().to(product::get_product_purchases)),
                     ),
             )
             .service(

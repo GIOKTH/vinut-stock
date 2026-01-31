@@ -1,6 +1,8 @@
 use crate::db::AppState;
 use crate::models::product::Product;
-use crate::models::sale::{CreateSaleSchema, Sale, SaleItem, UpdateSaleStatusSchema};
+use crate::models::sale::{
+    CreateSaleSchema, Sale, SaleItem, SalesQuerySchema, UpdateSaleStatusSchema,
+};
 use actix_web::{web, HttpResponse, Responder};
 use rust_decimal::Decimal;
 use serde_json::json;
@@ -76,6 +78,13 @@ pub async fn create_sale(
 
         match product {
             Ok(p) => {
+                // Check if product is active
+                if !p.is_active.unwrap_or(true) {
+                    return HttpResponse::BadRequest().json(json!({
+                        "error": format!("Product {} is not active for sale", p.name)
+                    }));
+                }
+
                 // Check stock availability
                 if p.quantity < item.quantity {
                     return HttpResponse::BadRequest().json(json!({
@@ -148,8 +157,11 @@ pub async fn create_sale(
 #[utoipa::path(
     get,
     path = "/api/sales",
+    params(
+        SalesQuerySchema
+    ),
     responses(
-        (status = 200, description = "List all sales", body = [Sale]),
+        (status = 200, description = "List all sales with filters", body = [Sale]),
         (status = 500, description = "Internal server error")
     ),
     tag = "Sales",
@@ -157,14 +169,42 @@ pub async fn create_sale(
         ("bearer_auth" = [])
     )
 )]
-pub async fn get_sales(data: web::Data<AppState>) -> impl Responder {
-    let result = sqlx::query_as!(Sale, "SELECT * FROM sales ORDER BY created_at DESC")
+pub async fn get_sales(
+    query: web::Query<crate::models::sale::SalesQuerySchema>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> =
+        sqlx::QueryBuilder::new("SELECT * FROM sales WHERE 1=1 ");
+
+    if let Some(status) = &query.status {
+        query_builder.push(" AND status = ");
+        query_builder.push_bind(status);
+    }
+
+    query_builder.push(" ORDER BY created_at DESC");
+
+    let page = query.page.unwrap_or(1);
+    let page_size = query.page_size.unwrap_or(20);
+    let offset = (page - 1) * page_size;
+
+    query_builder.push(" LIMIT ");
+    query_builder.push_bind(page_size);
+    query_builder.push(" OFFSET ");
+    query_builder.push_bind(offset);
+
+    let result = query_builder
+        .build_query_as::<Sale>()
         .fetch_all(&data.db)
         .await;
+
     match result {
-        Ok(purchases) => {
-            log::info!("Sales fetched successfully");
-            HttpResponse::Ok().json(purchases)
+        Ok(sales) => {
+            log::info!(
+                "Sales fetched successfully (page: {}, size: {})",
+                page,
+                page_size
+            );
+            HttpResponse::Ok().json(sales)
         }
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
