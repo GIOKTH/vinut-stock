@@ -70,7 +70,7 @@ pub async fn create_purchase(
     let mut tx = data.db.begin().await.expect("Failed to start transaction");
 
     // Insert purchase HEADER
-    let purchase = sqlx::query_as!(
+    let purchase_result: Result<Purchase, sqlx::Error> = sqlx::query_as!(
         Purchase,
         "INSERT INTO purchases (id, supplier_id, total_amount, currency_code, exchange_rate, shipping_cost, tax_rate) 
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
@@ -83,8 +83,16 @@ pub async fn create_purchase(
         tax_rate
     )
     .fetch_one(&mut *tx)
-    .await
-    .expect("Failed to insert purchase header");
+    .await;
+
+    let purchase = match purchase_result {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            return HttpResponse::InternalServerError()
+                .json(json!({"error": format!("Failed to insert purchase header: {}", e)}));
+        }
+    };
 
     // Process Items
     for item in &body.items {

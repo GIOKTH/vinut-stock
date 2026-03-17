@@ -106,7 +106,8 @@ pub async fn create_sale(
                 sale_items.push(sale_item);
 
                 // Update stock
-                sqlx::query!(
+                // Update stock
+                let _: sqlx::postgres::PgQueryResult = sqlx::query!(
                     "UPDATE products SET quantity = quantity - $1 WHERE id = $2",
                     item.quantity,
                     p.id
@@ -123,7 +124,7 @@ pub async fn create_sale(
     }
 
     // Insert sale
-    let sale = sqlx::query_as!(
+    let sale: Sale = sqlx::query_as!(
         Sale,
         "INSERT INTO sales (id, total_amount, payment_method, promotion_code, currency_code, exchange_rate, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
         sale_id,
@@ -139,8 +140,9 @@ pub async fn create_sale(
     .expect("Failed to insert sale");
 
     // Insert sale items
+    // Insert sale items
     for si in sale_items {
-        sqlx::query!(
+        let _: sqlx::postgres::PgQueryResult = sqlx::query!(
             "INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, subtotal) VALUES ($1, $2, $3, $4, $5, $6)",
             si.id, si.sale_id, si.product_id, si.quantity, si.unit_price, si.subtotal
         )
@@ -234,7 +236,7 @@ pub async fn update_sale_status(
 ) -> impl Responder {
     let sale_id = path.into_inner();
 
-    let result = sqlx::query_as!(
+    let result: Result<Option<Sale>, sqlx::Error> = sqlx::query_as!(
         Sale,
         "UPDATE sales SET status = $1 WHERE id = $2 RETURNING *",
         body.status,

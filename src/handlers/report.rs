@@ -97,9 +97,10 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
     )
 )]
 pub async fn get_product_reports(data: web::Data<AppState>) -> impl Responder {
-    let result = sqlx::query("SELECT * FROM product_performance ORDER BY total_sold DESC")
-        .fetch_all(&data.db)
-        .await;
+    let result: Result<Vec<sqlx::postgres::PgRow>, sqlx::Error> =
+        sqlx::query("SELECT * FROM product_performance ORDER BY total_sold DESC")
+            .fetch_all(&data.db)
+            .await;
 
     match result {
         Ok(rows) => {

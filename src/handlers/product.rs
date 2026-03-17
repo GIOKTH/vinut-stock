@@ -47,7 +47,7 @@ pub async fn create_product(
 ) -> impl Responder {
     let id = Uuid::new_v4();
     let is_active = body.is_active.unwrap_or(true);
-    let result = sqlx::query_as!(
+    let result: Result<Product, sqlx::Error> = sqlx::query_as!(
         Product,
         "INSERT INTO products (id, code, name, image, sale_price, commission_price, promotion_price, quantity, is_active, low_stock_threshold) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",

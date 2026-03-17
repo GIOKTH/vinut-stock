@@ -22,7 +22,7 @@ pub async fn register_user(
     let hashed_password = hash_password(&body.password);
     let user_id = Uuid::new_v4();
 
-    let query_result = sqlx::query_as!(
+    let query_result: Result<User, sqlx::Error> = sqlx::query_as!(
         User,
         "INSERT INTO users (id, username, password_hash, role, is_blocked) VALUES ($1, $2, $3, $4, $5) RETURNING *",
         user_id,

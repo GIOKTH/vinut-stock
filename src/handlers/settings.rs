@@ -30,9 +30,10 @@ pub struct UpdateExchangeRateSchema {
     )
 )]
 pub async fn get_exchange_rates(data: web::Data<AppState>) -> impl Responder {
-    let result = sqlx::query_as!(ExchangeRate, "SELECT * FROM exchange_rates")
-        .fetch_all(&data.db)
-        .await;
+    let result: Result<Vec<ExchangeRate>, sqlx::Error> =
+        sqlx::query_as!(ExchangeRate, "SELECT * FROM exchange_rates")
+            .fetch_all(&data.db)
+            .await;
 
     match result {
         Ok(rates) => HttpResponse::Ok().json(rates),
@@ -62,9 +63,9 @@ pub async fn update_exchange_rate(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let currency_code = path.into_inner();
-    let result = sqlx::query!(
+    let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query!(
         "INSERT INTO exchange_rates (currency_code, rate_to_base) VALUES ($1, $2)
-         ON CONFLICT (currency_code) DO UPDATE SET rate_to_base = $2, updated_at = NOW()",
+         ON CONFLICT (currency_code) DO UPDATE SET rate_to_base = EXCLUDED.rate_to_base",
         currency_code,
         body.rate_to_base
     )
@@ -95,7 +96,7 @@ pub struct ChangeRoleSchema {
     )
 )]
 pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
-    let result = sqlx::query_as!(
+    let result: Result<Vec<UserResponse>, sqlx::Error> = sqlx::query_as!(
         UserResponse,
         "SELECT id, username, role, is_blocked FROM users where role != 'ADMIN' ORDER BY created_at DESC"
     )
@@ -125,9 +126,10 @@ pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
 )]
 pub async fn block_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
     let user_id = path.into_inner();
-    let result = sqlx::query!("UPDATE users SET is_blocked = TRUE WHERE id = $1", user_id)
-        .execute(&data.db)
-        .await;
+    let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =
+        sqlx::query!("UPDATE users SET is_blocked = TRUE WHERE id = $1", user_id)
+            .execute(&data.db)
+            .await;
 
     match result {
         Ok(_) => HttpResponse::Ok().json(json!({ "message": "User blocked" })),
@@ -155,9 +157,10 @@ pub async fn unblock_user(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let user_id = path.into_inner();
-    let result = sqlx::query!("UPDATE users SET is_blocked = FALSE WHERE id = $1", user_id)
-        .execute(&data.db)
-        .await;
+    let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =
+        sqlx::query!("UPDATE users SET is_blocked = FALSE WHERE id = $1", user_id)
+            .execute(&data.db)
+            .await;
 
     match result {
         Ok(_) => HttpResponse::Ok().json(json!({ "message": "User unblocked" })),
@@ -187,7 +190,7 @@ pub async fn change_user_role(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let user_id = path.into_inner();
-    let result = sqlx::query!(
+    let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query!(
         "UPDATE users SET role = $1 WHERE id = $2",
         body.role,
         user_id
@@ -221,9 +224,10 @@ pub async fn delete_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>)
 
     // Prevent deleting the main admin user (optional but safer)
     // For now, just implement the delete logic
-    let result = sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
-        .execute(&data.db)
-        .await;
+    let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =
+        sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
+            .execute(&data.db)
+            .await;
 
     match result {
         Ok(_) => HttpResponse::Ok().json(json!({ "message": "User deleted successfully" })),
