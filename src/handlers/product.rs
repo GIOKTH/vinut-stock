@@ -1,5 +1,5 @@
 use crate::db::AppState;
-use crate::models::product::{CreateProductSchema, Product};
+use crate::models::product::{CreateProductSchema, Product, UpdateProductSchema};
 use actix_web::{web, HttpResponse, Responder};
 use rust_decimal::Decimal;
 use serde_json::json;
@@ -61,6 +61,62 @@ pub async fn create_product(
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
 }
+
+#[utoipa::path(
+    patch,
+    path = "/api/products/{id}",
+    request_body = UpdateProductSchema,
+    responses(
+        (status = 200, description = "Product updated successfully", body = Product),
+        (status = 404, description = "Product not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Products",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn update_product(
+    path: web::Path<Uuid>,
+    body: web::Json<UpdateProductSchema>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let id = path.into_inner();
+    let result = sqlx::query_as!(
+        Product,
+        "UPDATE products SET 
+            code = COALESCE($1, code),
+            name = COALESCE($2, name),
+            image = COALESCE($3, image),
+            sale_price = COALESCE($4, sale_price),
+            commission_price = COALESCE($5, commission_price),
+            promotion_price = COALESCE($6, promotion_price),
+            quantity = COALESCE($7, quantity),
+            is_active = COALESCE($8, is_active),
+            low_stock_threshold = COALESCE($9, low_stock_threshold),
+            updated_at = NOW()
+        WHERE id = $10 RETURNING *",
+        body.code,
+        body.name,
+        body.image,
+        body.sale_price,
+        body.commission_price,
+        body.promotion_price,
+        body.quantity,
+        body.is_active,
+        body.low_stock_threshold,
+        id
+    )
+    .fetch_optional(&data.db)
+    .await;
+
+    match result {
+        Ok(Some(product)) => HttpResponse::Ok().json(product),
+        Ok(None) => HttpResponse::NotFound().json(json!({"error": "Product not found"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+}
+
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct UpdateProductStatusSchema {

@@ -37,6 +37,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                         web::scope("/{id}")
                             .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
                             .route("", web::get().to(product::get_product_by_id))
+                            .route("", web::patch().to(product::update_product))
                             .route("/status", web::patch().to(product::update_product_status))
                             .route("/purchases", web::get().to(product::get_product_purchases)),
                     ),

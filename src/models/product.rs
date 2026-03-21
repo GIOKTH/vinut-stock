@@ -33,3 +33,17 @@ pub struct CreateProductSchema {
     pub is_active: Option<bool>,
     pub low_stock_threshold: Option<i32>,
 }
+
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct UpdateProductSchema {
+    pub code: Option<String>,
+    pub name: Option<String>,
+    pub image: Option<String>,
+    pub sale_price: Option<Decimal>,
+    pub commission_price: Option<Decimal>,
+    pub promotion_price: Option<Decimal>,
+    pub quantity: Option<i32>,
+    pub is_active: Option<bool>,
+    pub low_stock_threshold: Option<i32>,
+}
+
