@@ -50,6 +50,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                             .route(web::post().to(sale::create_sale))
                             .route(web::get().to(sale::get_sales)),
                     )
+                    .route("/{id}", web::get().to(sale::get_sale))
                     .route("/{id}/status", web::patch().to(sale::update_sale_status)),
             )
             .service(

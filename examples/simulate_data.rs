@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let unit_price_local = product.sale_price * exchange_rate;
             let subtotal_local = unit_price_local * Decimal::from(qty);
 
-            total_sale_amount_base += (product.sale_price * Decimal::from(qty));
+            total_sale_amount_base += product.sale_price * Decimal::from(qty);
             items_to_insert.push((product_id, qty, unit_price_local, subtotal_local));
         }
 

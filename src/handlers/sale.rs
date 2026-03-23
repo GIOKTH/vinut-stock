@@ -1,8 +1,10 @@
 use crate::db::AppState;
 use crate::models::product::Product;
 use crate::models::sale::{
-    CreateSaleSchema, Sale, SaleItem, SalesQuerySchema, UpdateSaleStatusSchema,
+    CreateSaleSchema, Sale, SaleDetailResponse, SaleItem, SaleItemResponse, SaleResponse,
+    SalesQuerySchema, UpdateSaleStatusSchema,
 };
+use crate::security::Claims;
 use actix_web::{web, HttpResponse, Responder};
 use rust_decimal::Decimal;
 use serde_json::json;
@@ -25,8 +27,10 @@ use uuid::Uuid;
 pub async fn create_sale(
     body: web::Json<CreateSaleSchema>,
     data: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
 ) -> impl Responder {
     let sale_id = Uuid::new_v4();
+    let user_id = Uuid::parse_str(&claims.into_inner().sub).ok();
     let mut total_amount = Decimal::new(0, 2);
 
     let currency = body
@@ -126,14 +130,17 @@ pub async fn create_sale(
     // Insert sale
     let sale: Sale = sqlx::query_as!(
         Sale,
-        "INSERT INTO sales (id, total_amount, payment_method, promotion_code, currency_code, exchange_rate, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+        "INSERT INTO sales (id, user_id, total_amount, payment_method, promotion_code, currency_code, exchange_rate, status, payment_amount, payment_currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         sale_id,
+        user_id,
         total_amount,
         body.payment_method,
         body.promotion_code,
         currency,
         exchange_rate,
-        status
+        status,
+        body.payment_amount,
+        body.payment_currency
     )
     .fetch_one(&mut *tx)
     .await
@@ -176,14 +183,14 @@ pub async fn get_sales(
     data: web::Data<AppState>,
 ) -> impl Responder {
     let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> =
-        sqlx::QueryBuilder::new("SELECT * FROM sales WHERE 1=1 ");
+        sqlx::QueryBuilder::new("SELECT s.*, u.username FROM sales s LEFT JOIN users u ON s.user_id = u.id WHERE 1=1 ");
 
     if let Some(status) = &query.status {
-        query_builder.push(" AND status = ");
+        query_builder.push(" AND s.status = ");
         query_builder.push_bind(status);
     }
 
-    query_builder.push(" ORDER BY created_at DESC");
+    query_builder.push(" ORDER BY s.created_at DESC");
 
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(20);
@@ -195,7 +202,7 @@ pub async fn get_sales(
     query_builder.push_bind(offset);
 
     let result = query_builder
-        .build_query_as::<Sale>()
+        .build_query_as::<SaleResponse>()
         .fetch_all(&data.db)
         .await;
 
@@ -247,6 +254,71 @@ pub async fn update_sale_status(
 
     match result {
         Ok(Some(sale)) => HttpResponse::Ok().json(sale),
+        Ok(None) => HttpResponse::NotFound().json(json!({"error": "Sale not found"})),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/sales/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Sale Database ID")
+    ),
+    responses(
+        (status = 200, description = "Sale details with items", body = SaleDetailResponse),
+        (status = 404, description = "Sale not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Sales",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -> impl Responder {
+    let sale_id = path.into_inner();
+
+    // Fetch sale header
+    let sale = sqlx::query_as!(
+        SaleResponse,
+        "SELECT s.*, u.username FROM sales s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = $1",
+        sale_id
+    )
+    .fetch_optional(&data.db)
+    .await;
+
+    match sale {
+        Ok(Some(s)) => {
+            // Fetch sale items with product names
+            let items = sqlx::query!(
+                r#"SELECT si.id, si.sale_id, si.product_id, p.name as product_name, p.code as product_code, si.quantity, si.unit_price, si.subtotal 
+                 FROM sale_items si 
+                 LEFT JOIN products p ON si.product_id = p.id 
+                 WHERE si.sale_id = $1"#,
+                sale_id
+            )
+            .fetch_all(&data.db)
+            .await;
+
+            match items {
+                Ok(items) => {
+                    let item_responses = items.into_iter().map(|item| SaleItemResponse {
+                        id: item.id,
+                        sale_id: item.sale_id.unwrap_or_default(),
+                        product_id: item.product_id,
+                        product_name: Some(item.product_name),
+                        product_code: Some(item.product_code),
+                        quantity: item.quantity,
+                        unit_price: item.unit_price,
+                        subtotal: item.subtotal,
+                    }).collect();
+                    HttpResponse::Ok().json(SaleDetailResponse { sale: s, items: item_responses })
+                },
+                Err(e) => {
+                    HttpResponse::InternalServerError().json(json!({"error": e.to_string()}))
+                }
+            }
+        }
         Ok(None) => HttpResponse::NotFound().json(json!({"error": "Sale not found"})),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }

@@ -4,7 +4,7 @@ use actix_web::{
     body::MessageBody,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     error::ErrorUnauthorized,
-    web, Error,
+    web, Error, HttpMessage,
 };
 use futures_util::future::{ready, LocalBoxFuture, Ready};
 use std::rc::Rc;
@@ -89,6 +89,8 @@ where
             if !allowed_roles.contains(&claims.role) {
                 return Err(actix_web::error::ErrorForbidden("Insufficient permissions"));
             }
+
+            req.extensions_mut().insert(claims);
 
             // Proceed to the service
             service.call(req).await

@@ -15,6 +15,25 @@ pub struct Sale {
     pub currency_code: Option<String>,
     pub exchange_rate: Option<Decimal>,
     pub status: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
+pub struct SaleResponse {
+    pub id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub username: Option<String>,
+    pub total_amount: Decimal,
+    pub discount_amount: Option<Decimal>,
+    pub promotion_code: Option<String>,
+    pub payment_method: Option<String>,
+    pub currency_code: Option<String>,
+    pub exchange_rate: Option<Decimal>,
+    pub status: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -26,6 +45,24 @@ pub struct SaleItem {
     pub quantity: i32,
     pub unit_price: Decimal,
     pub subtotal: Decimal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
+pub struct SaleItemResponse {
+    pub id: Uuid,
+    pub sale_id: Uuid,
+    pub product_id: Option<Uuid>,
+    pub product_name: Option<String>,
+    pub product_code: Option<String>,
+    pub quantity: i32,
+    pub unit_price: Decimal,
+    pub subtotal: Decimal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct SaleDetailResponse {
+    pub sale: SaleResponse,
+    pub items: Vec<SaleItemResponse>,
 }
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
@@ -40,6 +77,8 @@ pub struct CreateSaleSchema {
     pub promotion_code: Option<String>,
     pub payment_method: Option<String>,
     pub currency_code: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
     pub status: Option<String>,
 }
 
