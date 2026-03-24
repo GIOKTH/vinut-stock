@@ -34,4 +34,5 @@ pub struct UserResponse {
     pub username: String,
     pub role: String,
     pub is_blocked: Option<bool>,
+    pub has_sales: Option<bool>,
 }

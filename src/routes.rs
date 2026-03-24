@@ -61,22 +61,24 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/settings")
-                    .wrap(Authorize::new(vec!["ADMIN"]))
-                    .route("/exchange", web::get().to(settings::get_exchange_rates))
-                    .route(
-                        "/exchange/{currency}",
-                        web::post().to(settings::update_exchange_rate),
+                    .service(
+                        web::resource("/exchange")
+                            .wrap(Authorize::new(vec!["ADMIN", "SALE"]))
+                            .route(web::get().to(settings::get_exchange_rates)),
                     )
-                    .route("/users", web::get().to(settings::get_users))
-                    .route("/users/{id}", web::delete().to(settings::delete_user))
-                    .route("/users/{id}/block", web::post().to(settings::block_user))
-                    .route(
-                        "/users/{id}/unblock",
-                        web::post().to(settings::unblock_user),
+                    .service(
+                        web::resource("/exchange/{currency}")
+                            .wrap(Authorize::new(vec!["ADMIN"]))
+                            .route(web::post().to(settings::update_exchange_rate)),
                     )
-                    .route(
-                        "/users/{id}/role",
-                        web::put().to(settings::change_user_role),
+                    .service(
+                        web::scope("/users")
+                            .wrap(Authorize::new(vec!["ADMIN"]))
+                            .route("", web::get().to(settings::get_users))
+                            .route("/{id}", web::delete().to(settings::delete_user))
+                            .route("/{id}/block", web::post().to(settings::block_user))
+                            .route("/{id}/unblock", web::post().to(settings::unblock_user))
+                            .route("/{id}/role", web::put().to(settings::change_user_role)),
                     ),
             )
             .service(

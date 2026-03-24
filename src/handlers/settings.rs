@@ -102,7 +102,15 @@ pub async fn get_users(data: web::Data<AppState>, claims: web::ReqData<Claims>) 
     
     let result: Result<Vec<UserResponse>, sqlx::Error> = sqlx::query_as!(
         UserResponse,
-        "SELECT id, username, role, is_blocked FROM users WHERE id != $1 ORDER BY created_at DESC",
+        r#"SELECT 
+            u.id, 
+            u.username, 
+            u.role, 
+            u.is_blocked,
+            EXISTS (SELECT 1 FROM sales s WHERE s.user_id = u.id) as "has_sales!"
+           FROM users u 
+           WHERE u.id != $1 
+           ORDER BY u.created_at DESC"#,
         me
     )
     .fetch_all(&data.db)
@@ -251,6 +259,24 @@ pub async fn delete_user(
 
     if Some(user_id) == me {
         return HttpResponse::BadRequest().json(json!({"error": "Cannot delete yourself!"}));
+    }
+
+    // Check if user has sales records before deleting
+    let has_sales = sqlx::query!(
+        "SELECT id FROM sales WHERE user_id = $1 LIMIT 1",
+        user_id
+    )
+    .fetch_optional(&data.db)
+    .await;
+
+    match has_sales {
+        Ok(Some(_)) => {
+            return HttpResponse::BadRequest().json(json!({
+                "error": "Cannot delete user with existing sales records. Please block the user instead."
+            }));
+        }
+        Err(e) => return HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+        Ok(None) => {}
     }
 
     let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =

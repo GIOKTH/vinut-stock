@@ -41,6 +41,7 @@ pub async fn register_user(
                 username: user.username,
                 role: user.role,
                 is_blocked: user.is_blocked,
+                has_sales: None,
             };
             HttpResponse::Ok().json(response)
         }
@@ -142,6 +143,7 @@ pub async fn get_me(req: actix_web::HttpRequest, data: web::Data<AppState>) -> i
                 username: user.username,
                 role: user.role,
                 is_blocked: user.is_blocked,
+                has_sales: None,
             };
             HttpResponse::Ok().json(response)
         }
