@@ -62,6 +62,14 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
             .await
             .unwrap_or_default();
 
+            // Get all exchange rates for the currency board
+            let exchange_rates = sqlx::query!(
+                "SELECT currency_code, rate_to_base FROM exchange_rates"
+            )
+            .fetch_all(&data.db)
+            .await
+            .unwrap_or_default();
+
             HttpResponse::Ok().json(json!({
                 "daily_sales_total": stats.total_sales_today,
                 "daily_profit_total": stats.total_profit_today,
@@ -77,6 +85,10 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
                     "name": i.name,
                     "quantity": i.quantity,
                     "threshold": i.low_stock_threshold
+                })).collect::<Vec<_>>(),
+                "exchange_rates": exchange_rates.into_iter().map(|r| json!({
+                    "currency": r.currency_code,
+                    "rate": r.rate_to_base
                 })).collect::<Vec<_>>(),
             }))
         }
