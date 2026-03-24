@@ -102,22 +102,21 @@ pub async fn create_sale(
                     }));
                 }
 
-                let subtotal = p.sale_price * Decimal::from(item.quantity) * exchange_rate;
-                total_amount += subtotal;
+                let subtotal_base = p.sale_price * Decimal::from(item.quantity);
+                total_amount += subtotal_base;
 
                 let sale_item = SaleItem {
                     id: Uuid::new_v4(),
                     sale_id,
                     product_id: Some(p.id),
                     quantity: item.quantity,
-                    unit_price: p.sale_price * exchange_rate,
-                    subtotal,
+                    unit_price: p.sale_price, // Unit price in USD
+                    subtotal: subtotal_base,  // Subtotal in USD
                 };
                 sale_items.push(sale_item);
 
                 // Update stock
-                // Update stock
-                let _: sqlx::postgres::PgQueryResult = sqlx::query!(
+                sqlx::query!(
                     "UPDATE products SET quantity = quantity - $1 WHERE id = $2",
                     item.quantity,
                     p.id
@@ -139,7 +138,7 @@ pub async fn create_sale(
         "INSERT INTO sales (id, user_id, total_amount, payment_method, promotion_code, currency_code, exchange_rate, status, payment_amount, payment_currency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *",
         sale_id,
         user_id,
-        total_amount,
+        total_amount, // Stored in USD base currency
         body.payment_method,
         body.promotion_code,
         currency,

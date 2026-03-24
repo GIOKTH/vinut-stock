@@ -70,16 +70,16 @@ pub async fn create_quotation(
 
         match product {
             Ok(p) => {
-                let subtotal = p.sale_price * Decimal::from(item.quantity) * exchange_rate;
-                total_amount += subtotal;
+                let subtotal_base = p.sale_price * Decimal::from(item.quantity);
+                total_amount += subtotal_base;
 
                 let q_item = QuotationItem {
                     id: Uuid::new_v4(),
                     quotation_id: Some(quotation_id),
                     product_id: Some(p.id),
                     quantity: item.quantity,
-                    unit_price: p.sale_price * exchange_rate,
-                    subtotal,
+                    unit_price: p.sale_price, // Unit price in USD
+                    subtotal: subtotal_base,  // Subtotal in USD
                 };
                 quotation_items.push(q_item);
             }
@@ -102,7 +102,7 @@ pub async fn create_quotation(
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         quotation_id,
         body.partner_name,
-        total_amount,
+        total_amount, // Stored in USD base currency
         tax_rate,
         discount_amount,
         currency,
@@ -285,14 +285,19 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
 
     // 4. Create Sale
     let sale_id = Uuid::new_v4();
+    let payment_amount = quotation.total_amount * quotation.exchange_rate;
+    let payment_currency = quotation.currency_code.clone();
 
+    // Use query_as! with all required fields to match schema
     sqlx::query!(
-        "INSERT INTO sales (id, total_amount, currency_code, exchange_rate, status) 
-         VALUES ($1, $2, $3, $4, 'PENDING')",
+        "INSERT INTO sales (id, total_amount, currency_code, exchange_rate, status, payment_amount, payment_currency, payment_method) 
+         VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, 'CASH')",
         sale_id,
-        quotation.total_amount,
+        quotation.total_amount, // Stored in USD base currency
         quotation.currency_code,
-        quotation.exchange_rate
+        quotation.exchange_rate,
+        payment_amount,
+        payment_currency,
     )
     .execute(&mut *tx)
     .await
@@ -308,8 +313,8 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
                 sale_id,
                 pid,
                 item.quantity,
-                item.unit_price,
-                item.subtotal
+                item.unit_price, // Already in USD from QuotationItem logic
+                item.subtotal   // Already in USD from QuotationItem logic
             )
             .execute(&mut *tx)
             .await
