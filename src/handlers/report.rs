@@ -36,17 +36,20 @@ pub async fn get_dashboard_summary(data: web::Data<AppState>) -> impl Responder 
             .await
             .unwrap_or_default();
 
-            // Get sales and profit summary by currency today
+            // Get sales and profit summary by currency today using actual payment amount
             let currency_summary = sqlx::query!(
                 "SELECT 
-                    s.currency_code, 
-                    SUM(s.total_amount) as total_sales,
-                    SUM(si.quantity * (si.unit_price - (p.cost_price * s.exchange_rate))) as total_profit
+                    COALESCE(s.payment_currency, 'USD') as currency_code, 
+                    SUM(s.payment_amount) as total_sales,
+                    SUM(s.payment_amount - (
+                        SELECT COALESCE(SUM(si.quantity * p.cost_price), 0)
+                        FROM sale_items si
+                        JOIN products p ON si.product_id = p.id
+                        WHERE si.sale_id = s.id
+                    ) * s.exchange_rate) as total_profit
                  FROM sales s
-                 JOIN sale_items si ON s.id = si.sale_id
-                 JOIN products p ON si.product_id = p.id
                  WHERE s.created_at >= CURRENT_DATE AND s.status = 'COMPLETED'
-                 GROUP BY s.currency_code"
+                 GROUP BY s.payment_currency"
             )
             .fetch_all(&data.db)
             .await
