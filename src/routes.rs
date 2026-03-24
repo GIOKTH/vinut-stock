@@ -57,7 +57,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/purchases")
                     .wrap(Authorize::new(vec!["ADMIN"]))
                     .route("", web::post().to(purchase::create_purchase))
-                    .route("", web::get().to(purchase::get_purchases)),
+                    .route("", web::get().to(purchase::get_purchases))
+                    .route("/{id}", web::get().to(purchase::get_purchase_details))
+                    .route("/{id}/receive", web::patch().to(purchase::receive_purchase)),
             )
             .service(
                 web::scope("/settings")

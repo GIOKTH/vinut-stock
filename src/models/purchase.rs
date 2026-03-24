@@ -13,6 +13,7 @@ pub struct Purchase {
     pub exchange_rate: Decimal,
     pub shipping_cost: Option<Decimal>,
     pub tax_rate: Option<Decimal>,
+    pub status: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -24,6 +25,10 @@ pub struct PurchaseItem {
     pub quantity: i32,
     pub buy_price: Decimal,
     pub subtotal: Decimal,
+    pub new_sale_price: Option<Decimal>,
+    pub new_commission_price: Option<Decimal>,
+    pub new_promotion_price: Option<Decimal>,
+    pub landed_cost_base: Option<Decimal>,
 }
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]

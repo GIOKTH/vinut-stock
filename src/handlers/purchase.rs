@@ -69,18 +69,20 @@ pub async fn create_purchase(
     // Start transaction
     let mut tx = data.db.begin().await.expect("Failed to start transaction");
 
-    // Insert purchase HEADER
+    let status = "PENDING".to_string();
+
     let purchase_result: Result<Purchase, sqlx::Error> = sqlx::query_as!(
         Purchase,
-        "INSERT INTO purchases (id, supplier_id, total_amount, currency_code, exchange_rate, shipping_cost, tax_rate) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
+        "INSERT INTO purchases (id, supplier_id, total_amount, currency_code, exchange_rate, shipping_cost, tax_rate, status) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         purchase_id,
         body.supplier_id,
         total_amount_foreign,
         currency,
         exchange_rate,
         shipping_cost,
-        tax_rate
+        tax_rate,
+        status
     )
     .fetch_one(&mut *tx)
     .await;
@@ -149,65 +151,25 @@ pub async fn create_purchase(
         // Correcting logic: Cost in Base = Foreign Cost * Rate.
         let landed_cost_base = landed_cost_foreign * exchange_rate;
 
-        // Insert Purchase Item
+        // Insert Purchase Item with dynamic pricing attributes saved for later
         sqlx::query!(
-            "INSERT INTO purchase_items (id, purchase_id, product_id, quantity, buy_price, subtotal) 
-             VALUES ($1, $2, $3, $4, $5, $6)",
+            "INSERT INTO purchase_items (id, purchase_id, product_id, quantity, buy_price, subtotal, 
+             new_sale_price, new_commission_price, new_promotion_price, landed_cost_base) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
             Uuid::new_v4(),
             purchase_id,
             item.product_id,
             item.quantity,
             item.buy_price,
-            subtotal_foreign
+            subtotal_foreign,
+            item.new_sale_price,
+            item.new_commission_price,
+            item.new_promotion_price,
+            landed_cost_base
         )
         .execute(&mut *tx)
         .await
         .expect("Failed to insert purchase item");
-
-        // Update Product (Dynamic Pricing)
-        let mut product_update_query =
-            "UPDATE products SET quantity = quantity + $1, cost_price = $2".to_string();
-        let mut param_index = 3;
-
-        if item.new_sale_price.is_some() {
-            product_update_query.push_str(&format!(", sale_price = ${}", param_index));
-            param_index += 1;
-        }
-        if item.new_commission_price.is_some() {
-            product_update_query.push_str(&format!(", commission_price = ${}", param_index));
-            param_index += 1;
-        }
-        if item.new_promotion_price.is_some() {
-            product_update_query.push_str(&format!(", promotion_price = ${}", param_index));
-            param_index += 1;
-        }
-
-        product_update_query.push_str(&format!(
-            ", updated_at = CURRENT_TIMESTAMP WHERE id = ${}",
-            param_index
-        ));
-
-        let mut q = sqlx::query(&product_update_query)
-            .bind(item.quantity)
-            .bind(landed_cost_base); // Storing Cost in BASE currency
-
-        if let Some(sp) = item.new_sale_price {
-            q = q.bind(sp);
-        }
-        if let Some(cp) = item.new_commission_price {
-            q = q.bind(cp);
-        }
-        if let Some(pp) = item.new_promotion_price {
-            q = q.bind(pp);
-        }
-
-        let update_result = q.bind(item.product_id).execute(&mut *tx).await;
-
-        if let Err(e) = update_result {
-            return HttpResponse::InternalServerError().json(
-                json!({"error": format!("Failed to update product {}: {}", item.product_id, e)}),
-            );
-        }
     }
 
     tx.commit().await.expect("Failed to commit transaction");
@@ -236,4 +198,196 @@ pub async fn get_purchases(data: web::Data<AppState>) -> impl Responder {
         Ok(purchases) => HttpResponse::Ok().json(purchases),
         Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
     }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PurchaseDetailResponse {
+    pub purchase: Purchase,
+    pub items: Vec<PurchaseItemDetail>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct PurchaseItemDetail {
+    pub id: Uuid,
+    pub product_name: String,
+    pub product_code: String,
+    pub quantity: i32,
+    pub buy_price: Decimal,
+    pub subtotal: Decimal,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/purchases/{id}",
+    params(
+        ("id" = Uuid, Path, description = "Purchase ID")
+    ),
+    responses(
+        (status = 200, description = "Purchase details fetched"),
+        (status = 404, description = "Purchase not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Purchases",
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_purchase_details(
+    path: web::Path<Uuid>,
+    data: web::Data<AppState>,
+) -> impl Responder {
+    let purchase_id = path.into_inner();
+
+    let purchase = sqlx::query_as!(Purchase, "SELECT * FROM purchases WHERE id = $1", purchase_id)
+        .fetch_optional(&data.db)
+        .await;
+
+    let purchase = match purchase {
+        Ok(Some(p)) => p,
+        Ok(None) => return HttpResponse::NotFound().json(json!({"error": "Purchase not found"})),
+        Err(e) => return HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    };
+
+    let items = sqlx::query_as!(
+        PurchaseItemDetail,
+        r#"SELECT 
+            pi.id, 
+            p.name as product_name, 
+            p.code as product_code, 
+            pi.quantity, 
+            pi.buy_price, 
+            pi.subtotal 
+           FROM purchase_items pi
+           JOIN products p ON pi.product_id = p.id
+           WHERE pi.purchase_id = $1"#,
+        purchase_id
+    )
+    .fetch_all(&data.db)
+    .await;
+
+    match items {
+        Ok(items) => HttpResponse::Ok().json(PurchaseDetailResponse { purchase, items }),
+        Err(e) => HttpResponse::InternalServerError().json(json!({"error": e.to_string()})),
+    }
+}
+
+/// Receive a PENDING purchase, updating inventory and product prices.
+#[utoipa::path(
+    patch,
+    path = "/api/purchases/{id}/receive",
+    responses(
+        (status = 200, description = "Purchase items received and inventory updated", body = Purchase),
+        (status = 404, description = "Purchase not found"),
+        (status = 400, description = "Purchase is not in PENDING state")
+    )
+)]
+pub async fn receive_purchase(
+    data: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> impl Responder {
+    let purchase_id = path.into_inner();
+
+    let purchase = sqlx::query_as!(
+        Purchase,
+        "SELECT * FROM purchases WHERE id = $1",
+        purchase_id
+    )
+    .fetch_optional(&data.db)
+    .await;
+
+    let purchase = match purchase {
+        Ok(Some(p)) => p,
+        Ok(None) => return HttpResponse::NotFound().json(json!({"error": "Purchase not found"})),
+        Err(e) => return HttpResponse::InternalServerError().json(json!({"error": format!("Failed to fetch purchase: {}", e)})),
+    };
+
+    if purchase.status.as_deref() != Some("PENDING") {
+        return HttpResponse::BadRequest().json(json!({"error": "Purchase is already received or cancelled"}));
+    }
+
+    let mut tx = data.db.begin().await.expect("Failed to begin transaction");
+
+    // Fetch items to update inventory and cost prices
+    // Because we just added new fields, we need to SELECT them
+    let items = sqlx::query!(
+        "SELECT product_id, quantity, new_sale_price, new_commission_price, new_promotion_price, landed_cost_base 
+         FROM purchase_items WHERE purchase_id = $1 AND product_id IS NOT NULL",
+        purchase_id
+    )
+    .fetch_all(&mut *tx)
+    .await;
+
+    let items = match items {
+        Ok(i) => i,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            return HttpResponse::InternalServerError().json(json!({"error": format!("Failed to fetch items: {}", e)}));
+        }
+    };
+
+    for item in items {
+        if let Some(product_id) = item.product_id {
+            let mut product_update_query = "UPDATE products SET quantity = quantity + $1, cost_price = $2".to_string();
+            let mut param_index = 3;
+
+            if item.new_sale_price.is_some() {
+                product_update_query.push_str(&format!(", sale_price = ${}", param_index));
+                param_index += 1;
+            }
+            if item.new_commission_price.is_some() {
+                product_update_query.push_str(&format!(", commission_price = ${}", param_index));
+                param_index += 1;
+            }
+            if item.new_promotion_price.is_some() {
+                product_update_query.push_str(&format!(", promotion_price = ${}", param_index));
+                param_index += 1;
+            }
+
+            product_update_query.push_str(&format!(", updated_at = CURRENT_TIMESTAMP WHERE id = ${}", param_index));
+
+            let mut q = sqlx::query(&product_update_query)
+                .bind(item.quantity)
+                .bind(item.landed_cost_base.unwrap_or(rust_decimal::Decimal::new(0, 0)));
+
+            if let Some(sp) = item.new_sale_price {
+                q = q.bind(sp);
+            }
+            if let Some(cp) = item.new_commission_price {
+                q = q.bind(cp);
+            }
+            if let Some(pp) = item.new_promotion_price {
+                q = q.bind(pp);
+            }
+
+            let update_result = q.bind(product_id).execute(&mut *tx).await;
+
+            if let Err(e) = update_result {
+                let _ = tx.rollback().await;
+                return HttpResponse::InternalServerError().json(
+                    json!({"error": format!("Failed to update product {}: {}", product_id, e)}),
+                );
+            }
+        }
+    }
+
+    // Mark purchase as RECEIVED
+    let updated_purchase = sqlx::query_as!(
+        Purchase,
+        "UPDATE purchases SET status = 'RECEIVED' WHERE id = $1 RETURNING *",
+        purchase_id
+    )
+    .fetch_one(&mut *tx)
+    .await;
+
+    let updated_purchase = match updated_purchase {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = tx.rollback().await;
+            return HttpResponse::InternalServerError().json(json!({"error": format!("Failed to update purchase status: {}", e)}));
+        }
+    };
+
+    tx.commit().await.expect("Failed to commit transaction");
+
+    HttpResponse::Ok().json(updated_purchase)
 }
