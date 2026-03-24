@@ -1,9 +1,11 @@
 use crate::db::AppState;
 use crate::models::user::UserResponse;
+use crate::security::Claims;
 use actix_web::{web, HttpResponse, Responder};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, utoipa::ToSchema)]
 pub struct ExchangeRate {
@@ -95,16 +97,19 @@ pub struct ChangeRoleSchema {
         ("bearer_auth" = [])
     )
 )]
-pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
+pub async fn get_users(data: web::Data<AppState>, claims: web::ReqData<Claims>) -> impl Responder {
+    let me = Uuid::parse_str(&claims.into_inner().sub).ok();
+    
     let result: Result<Vec<UserResponse>, sqlx::Error> = sqlx::query_as!(
         UserResponse,
-        "SELECT id, username, role, is_blocked FROM users where role != 'ADMIN' ORDER BY created_at DESC"
+        "SELECT id, username, role, is_blocked FROM users WHERE id != $1 ORDER BY created_at DESC",
+        me
     )
     .fetch_all(&data.db)
     .await;
 
     match result {
-        Ok(users) => HttpResponse::Ok().json(json!({ "users": users })),
+        Ok(users) => HttpResponse::Ok().json(users),
         Err(e) => HttpResponse::InternalServerError().json(json!({ "error": e.to_string() })),
     }
 }
@@ -124,8 +129,18 @@ pub async fn get_users(data: web::Data<AppState>) -> impl Responder {
         ("bearer_auth" = [])
     )
 )]
-pub async fn block_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
+pub async fn block_user(
+    path: web::Path<Uuid>, 
+    data: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
+) -> impl Responder {
     let user_id = path.into_inner();
+    let me = Uuid::parse_str(&claims.into_inner().sub).ok();
+
+    if Some(user_id) == me {
+        return HttpResponse::BadRequest().json(json!({"error": "Cannot block yourself!"}));
+    }
+
     let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =
         sqlx::query!("UPDATE users SET is_blocked = TRUE WHERE id = $1", user_id)
             .execute(&data.db)
@@ -185,11 +200,18 @@ pub async fn unblock_user(
     )
 )]
 pub async fn change_user_role(
-    path: web::Path<uuid::Uuid>,
+    path: web::Path<Uuid>,
     body: web::Json<ChangeRoleSchema>,
     data: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
 ) -> impl Responder {
     let user_id = path.into_inner();
+    let me = Uuid::parse_str(&claims.into_inner().sub).ok();
+
+    if Some(user_id) == me {
+        return HttpResponse::BadRequest().json(json!({"error": "Cannot change your own role!"}));
+    }
+
     let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query!(
         "UPDATE users SET role = $1 WHERE id = $2",
         body.role,
@@ -219,11 +241,18 @@ pub async fn change_user_role(
         ("bearer_auth" = [])
     )
 )]
-pub async fn delete_user(path: web::Path<uuid::Uuid>, data: web::Data<AppState>) -> impl Responder {
+pub async fn delete_user(
+    path: web::Path<Uuid>, 
+    data: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
+) -> impl Responder {
     let user_id = path.into_inner();
+    let me = Uuid::parse_str(&claims.into_inner().sub).ok();
 
-    // Prevent deleting the main admin user (optional but safer)
-    // For now, just implement the delete logic
+    if Some(user_id) == me {
+        return HttpResponse::BadRequest().json(json!({"error": "Cannot delete yourself!"}));
+    }
+
     let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> =
         sqlx::query!("DELETE FROM users WHERE id = $1", user_id)
             .execute(&data.db)
