@@ -252,11 +252,11 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
     .await
     .unwrap_or_default();
 
-    // 3. Check Stock for all items
+    // 3. Check Stock for all items (with locking)
     for item in &items {
         if let Some(pid) = item.product_id {
             let product = sqlx::query!(
-                "SELECT name, quantity, is_active FROM products WHERE id = $1",
+                "SELECT name, quantity, is_active FROM products WHERE id = $1 FOR UPDATE",
                 pid
             )
             .fetch_one(&mut *tx)
@@ -265,13 +265,19 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
 
             if !product.is_active.unwrap_or(true) {
                 return HttpResponse::BadRequest().json(json!({
-                    "error": format!("Product {} is not active for sale", product.name)
+                    "error": format!("Product '{}' is not active for sale", product.name)
+                }));
+            }
+
+            if product.quantity <= 0 {
+                return HttpResponse::BadRequest().json(json!({
+                    "error": format!("Product '{}' is out of stock", product.name)
                 }));
             }
 
             if product.quantity < item.quantity {
                 return HttpResponse::BadRequest().json(json!({
-                    "error": format!("Insufficient stock for product {}. Available: {}, Required: {}", product.name, product.quantity, item.quantity)
+                    "error": format!("Insufficient stock for product '{}'. Available: {}, Required: {}", product.name, product.quantity, item.quantity)
                 }));
             }
         }

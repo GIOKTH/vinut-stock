@@ -71,10 +71,10 @@ pub async fn create_sale(
                 .json(json!({"error": format!("Invalid quantity for product {}. Must be greater than 0.", item.product_id)}));
         }
 
-        // Get product price
+        // Get product price with row-level locking to prevent race conditions
         let product = sqlx::query_as!(
             Product,
-            "SELECT * FROM products WHERE id = $1",
+            "SELECT * FROM products WHERE id = $1 FOR UPDATE",
             item.product_id
         )
         .fetch_one(&mut *tx)
@@ -85,14 +85,20 @@ pub async fn create_sale(
                 // Check if product is active
                 if !p.is_active.unwrap_or(true) {
                     return HttpResponse::BadRequest().json(json!({
-                        "error": format!("Product {} is not active for sale", p.name)
+                        "error": format!("Product '{}' is not active for sale", p.name)
                     }));
                 }
 
-                // Check stock availability
+                // Strictly check stock availability
+                if p.quantity <= 0 {
+                    return HttpResponse::BadRequest().json(json!({
+                        "error": format!("Product '{}' is out of stock", p.name)
+                    }));
+                }
+
                 if p.quantity < item.quantity {
                     return HttpResponse::BadRequest().json(json!({
-                        "error": format!("Insufficient stock for product {}. Available: {}, Requested: {}", p.name, p.quantity, item.quantity)
+                        "error": format!("Insufficient stock for product '{}'. Available: {}, Requested: {}", p.name, p.quantity, item.quantity)
                     }));
                 }
 
