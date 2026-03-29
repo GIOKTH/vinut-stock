@@ -1,8 +1,9 @@
 use crate::db::AppState;
 use crate::models::product::Product;
 use crate::models::quotation::{
-    CreateQuotationSchema, Quotation, QuotationItem, UpdateQuotationStatusSchema,
+    CreateQuotationSchema, Quotation, QuotationItem, QuotationResponse, UpdateQuotationStatusSchema,
 };
+use crate::security::Claims;
 use actix_web::{web, HttpResponse, Responder};
 use rust_decimal::Decimal;
 use serde_json::json;
@@ -25,8 +26,10 @@ use uuid::Uuid;
 pub async fn create_quotation(
     body: web::Json<CreateQuotationSchema>,
     data: web::Data<AppState>,
+    claims: web::ReqData<Claims>,
 ) -> impl Responder {
     let quotation_id = Uuid::new_v4();
+    let user_id = Uuid::parse_str(&claims.into_inner().sub).ok();
     let mut total_amount = Decimal::new(0, 2);
 
     let tax_rate = body.tax_rate.unwrap_or(Decimal::new(0, 0));
@@ -98,16 +101,19 @@ pub async fn create_quotation(
 
     let quotation = sqlx::query_as!(
         Quotation,
-        "INSERT INTO quotations (id, partner_name, total_amount, tax_rate, discount_amount, currency_code, exchange_rate, status) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+        "INSERT INTO quotations (id, partner_name, user_id, total_amount, tax_rate, discount_amount, currency_code, exchange_rate, status, payment_amount, payment_currency) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *",
         quotation_id,
         body.partner_name,
+        user_id,
         total_amount, // Stored in USD base currency
         tax_rate,
         discount_amount,
         currency,
         exchange_rate,
-        status
+        status,
+        body.payment_amount,
+        body.payment_currency
     )
     .fetch_one(&mut *tx)
     .await
@@ -138,7 +144,7 @@ pub async fn create_quotation(
     get,
     path = "/api/quotations",
     responses(
-        (status = 200, description = "List all quotations", body = [Quotation]),
+        (status = 200, description = "List all quotations", body = [QuotationResponse]),
         (status = 500, description = "Internal server error")
     ),
     tag = "Quotations",
@@ -148,8 +154,8 @@ pub async fn create_quotation(
 )]
 pub async fn get_quotations(data: web::Data<AppState>) -> impl Responder {
     let result = sqlx::query_as!(
-        Quotation,
-        "SELECT * FROM quotations ORDER BY created_at DESC"
+        QuotationResponse,
+        "SELECT q.*, u.username FROM quotations q LEFT JOIN users u ON q.user_id = u.id ORDER BY q.created_at DESC"
     )
     .fetch_all(&data.db)
     .await;
@@ -186,7 +192,7 @@ pub async fn update_quotation_status(
 
     let result = sqlx::query_as!(
         Quotation,
-        "UPDATE quotations SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+        "UPDATE quotations SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, partner_name, user_id, total_amount, tax_rate, discount_amount, currency_code, exchange_rate, status, payment_amount, payment_currency, created_at, updated_at",
         body.status,
         quotation_id
     )
@@ -225,7 +231,7 @@ pub async fn convert_to_sale(path: web::Path<Uuid>, data: web::Data<AppState>) -
     // 1. Fetch Quotation
     let q = sqlx::query_as!(
         Quotation,
-        "SELECT * FROM quotations WHERE id = $1",
+        "SELECT id, partner_name, user_id, total_amount, tax_rate, discount_amount, currency_code, exchange_rate, status, payment_amount, payment_currency, created_at, updated_at FROM quotations WHERE id = $1",
         quotation_id
     )
     .fetch_optional(&mut *tx)

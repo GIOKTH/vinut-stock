@@ -96,4 +96,8 @@ pub struct SalesQuerySchema {
     pub page_size: Option<i64>,
     #[serde(default)]
     pub status: Option<String>,
+    #[serde(default)]
+    pub start_date: Option<chrono::NaiveDate>,
+    #[serde(default)]
+    pub end_date: Option<chrono::NaiveDate>,
 }

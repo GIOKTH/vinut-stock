@@ -98,7 +98,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/reports")
                     .wrap(Authorize::new(vec!["ADMIN"]))
                     .route("/products", web::get().to(report::get_product_reports))
-                    .route("/low-stock", web::get().to(report::get_low_stock_report)),
+                    .route("/low-stock", web::get().to(report::get_low_stock_report))
+                    .route("/sales/summary", web::get().to(report::get_sales_summary_report))
+                    .route("/sales/detailed", web::get().to(report::get_sales_detailed_report)),
             )
             .service(
                 web::scope("/dashboard")

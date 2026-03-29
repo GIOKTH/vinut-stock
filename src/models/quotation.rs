@@ -15,8 +15,28 @@ pub struct Quotation {
     pub currency_code: String,
     pub exchange_rate: Decimal,
     pub status: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
+pub struct QuotationResponse {
+    pub id: Uuid,
+    pub partner_name: Option<String>,
+    pub user_id: Option<Uuid>,
+    pub total_amount: Decimal,
+    pub tax_rate: Decimal,
+    pub discount_amount: Decimal,
+    pub currency_code: String,
+    pub exchange_rate: Decimal,
+    pub status: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub username: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, utoipa::ToSchema)]
@@ -43,6 +63,8 @@ pub struct CreateQuotationSchema {
     pub discount_amount: Option<Decimal>,
     pub currency_code: Option<String>,
     pub status: Option<String>,
+    pub payment_amount: Option<Decimal>,
+    pub payment_currency: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
